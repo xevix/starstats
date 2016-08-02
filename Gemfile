@@ -50,6 +50,9 @@ gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]
 # Configuration secrets
 gem 'figaro'
 
+# Redis
+gem 'redis', '~>3.2'
+
 # GitHub API
 gem 'octokit', '~> 4.0'
 gem 'faraday-http-cache'

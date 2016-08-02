@@ -3,4 +3,12 @@
 Stars:
 <br>
 <br>
-<%= @stars %>
+<% @stars.each do |star_year| %>
+    Year: <%= star_year.first %>
+    <br/>
+    <% star_year[1][0..-1].each do |star_month| %>
+        <%= "#{Date::MONTHNAMES[star_month.first]}: #{star_month.last}" %>
+        <br/>
+    <% end %>
+
+<% end %>
