@@ -1,19 +1,26 @@
 <h1>Stars Index</h1>
 
-Stars:
+Total Stars: <%= @stars.sum { |star_year| star_year[1][0..-1].sum { |star_month| star_month.last} } %>
 <br>
 <br>
 <table>
   <% @stars.each do |star_year| %>
       <tr>
-        <td><%= star_year.first %></td>
+        <td><b><%= star_year.first %></b></td>
       </tr>
+
       <% star_year[1][0..-1].each do |star_month| %>
           <tr>
             <td><%= Date::MONTHNAMES[star_month.first] %></td>
             <td><%= star_month.last %></td>
           </tr>
       <% end %>
+      <tr>
+
+        <td><b>Total</b></td>
+        <td><b><%= star_year[1][0..-1].sum { |star_month| star_month.last} %></b></td>
+
+      </tr>
 
   <% end %>
 </table>
