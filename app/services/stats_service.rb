@@ -33,7 +33,6 @@ class StatsService
 
     # If results are missing, cache them
     # TODO: Do the full list, not just the first page
-    # TODO: unhardcode username
     if latest_starred_redis.nil?
       # Grab the latest from the API
       starred_api = $octokit.starred(GITHUB_USER, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc")
