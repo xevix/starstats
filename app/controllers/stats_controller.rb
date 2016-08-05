@@ -1,6 +1,6 @@
 class StatsController < ApplicationController
   def index
-    @stars = starred_per_month
+    @star_view = starred_per_month
   end
 
   private

@@ -4,24 +4,50 @@ class StatsService
   STARRED_KEY = "my:starred"
   GITHUB_USER = ENV["github_user"]
 
-  # TODO: reorganize results so view needs no logic for displaying
-  # [year, [[month, count], [month, count]]]
   def starred_per_month
     starred = fetch_starred
     starred_by_month = {}
+    total_stars = 0
+    year_stars = {}
+    month_stars = {}
+
     starred.each do |star|
       datetime = DateTime.parse(star["starred_at"])
       year = datetime.year
       month = datetime.month
+
       this_year = starred_by_month[year] || {}
       this_month = this_year[month] || 0
       this_year[month] = this_month + 1
       starred_by_month[year] = this_year
+
+      total_stars += 1
+      if year_stars[year]
+        year_stars[year] += 1
+      else
+        year_stars[year] = 1
+      end
+
+      if month_stars[month]
+        month_stars[month] += 1
+      else
+        month_stars[month] = 1
+      end
     end
 
-    starred_by_month.keys.sort.collect do |year|
-      [year, (1..12).to_a.collect { |month| [month, starred_by_month[year][month] || 0] } ]
-    end
+
+    years = starred_by_month.keys.sort
+
+    {
+        total_stars: total_stars,
+        stars:
+            {
+                years: years,
+                month_stars: (1..12).to_a.collect { |month| years.collect { |year| starred_by_month[year][month] || 0 } },
+                year_star_totals: years.collect { |year| year_stars[year] },
+                month_star_totals: (1..12).to_a.collect { |month| month_stars[month] }
+            }
+    }
   end
 
   def fetch_starred
@@ -34,6 +60,7 @@ class StatsService
 
     # If results are missing, cache them
     # TODO: Proper check from the API periodically for new data
+    # TODO: allow setting of user via variable
     if latest_starred_redis.nil?
       # Grab the latest from the API
       $octokit.starred(GITHUB_USER, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc", per_page: 100)
