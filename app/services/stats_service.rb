@@ -2,10 +2,10 @@ class StatsService
   include Singleton
 
   STARRED_KEY = "my:starred"
-  GITHUB_USER = ENV["github_user"]
+  DEFAULT_GITHUB_USER = ENV["github_user"]
 
-  def starred_per_month
-    starred = fetch_starred
+  def starred_per_month(user)
+    starred = fetch_starred(user)
     starred_by_month = {}
     total_stars = 0
     year_stars = {}
@@ -50,9 +50,10 @@ class StatsService
     }
   end
 
-  def fetch_starred
+  def fetch_starred(user)
+    user ||= DEFAULT_GITHUB_USER
     # Grab the latest from Redis
-    latest_starred_redis_maybe = $redis.lindex STARRED_KEY, 0
+    latest_starred_redis_maybe = $redis.lindex(starred_key(user), 0)
     latest_starred_redis =
         if latest_starred_redis_maybe.present?
           JSON.parse(latest_starred_redis_maybe)
@@ -60,10 +61,9 @@ class StatsService
 
     # If results are missing, cache them
     # TODO: Proper check from the API periodically for new data
-    # TODO: allow setting of user via variable
     if latest_starred_redis.nil?
       # Grab the latest from the API
-      $octokit.starred(GITHUB_USER, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc", per_page: 100)
+      $octokit.starred(user, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc", per_page: 100)
 
       # Store response for pagination links
       latest_api_response = $octokit.last_response
@@ -71,7 +71,7 @@ class StatsService
       # Loop until there's no next page
       while true do
         latest_api_response.data.each do |starred_entry|
-          $redis.rpush STARRED_KEY, starred_entry.to_attrs.to_json
+          $redis.rpush starred_key(user), starred_entry.to_attrs.to_json
         end
 
         break unless latest_api_response.rels[:next]
@@ -81,7 +81,12 @@ class StatsService
     end
 
     # Fetch from cache and return
-    $redis.lrange(STARRED_KEY, 0, -1).collect { |e| JSON.parse(e) }
+    $redis.lrange(starred_key(user), 0, -1).collect { |e| JSON.parse(e) }
+  end
+
+  private
+  def starred_key(user)
+    STARRED_KEY + ":" + user
   end
 
 end
