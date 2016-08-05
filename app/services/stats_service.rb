@@ -2,6 +2,7 @@ class StatsService
   include Singleton
 
   STARRED_KEY = "my:starred"
+  GITHUB_USER = ENV["github_user"]
 
   # [[year, [month, count], [month, count]]]
   def starred_per_month
@@ -35,7 +36,7 @@ class StatsService
     # TODO: unhardcode username
     if latest_starred_redis.nil?
       # Grab the latest from the API
-      starred_api = $octokit.starred("xevix", accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc")
+      starred_api = $octokit.starred(GITHUB_USER, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc")
       starred_api.each do |starred_entry|
         $redis.rpush STARRED_KEY, starred_entry.to_attrs.to_json
       end
