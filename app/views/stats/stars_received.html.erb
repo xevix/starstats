@@ -1,0 +1,11 @@
+<h1>Stars Received Per Repo</h1>
+
+User: <%= @user %>
+<br>
+<% @star_views.each do |star_view| %>
+    <b>Repo: <%= star_view[:repo_name] %></b>
+    <br>
+<%= render partial: "stars", locals: { star_view: star_view[:repo_stars] } %>
+    <br>
+
+<% end %>

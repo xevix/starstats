@@ -1,0 +1,38 @@
+Total Stars: <%= star_view[:total_stars] %>
+<br>
+<br>
+<table>
+  <tr>
+    <td></td>
+    <% star_view[:stars][:years].each do |star_year| %>
+        <td><b><%= star_year %></b></td>
+    <% end %>
+    <td><b>Month Total</b></td>
+  </tr>
+
+  <% star_view[:stars][:month_stars].each_with_index do |month_rows, month| %>
+      <tr>
+        <td><b><%= Date::MONTHNAMES[month+1] %></b>
+
+          <% month_rows.each do |month_row| %>
+            <td>
+              <%= month_row %>
+            </td>
+        <% end %>
+        <td>
+          <b><%= star_view[:stars][:month_star_totals][month] %></b>
+        </td>
+
+      </tr>
+  <% end %>
+  <tr>
+
+    <td><b>Total</b></td>
+
+    <% star_view[:stars][:year_star_totals].each do |year_star_count| %>
+        <td><b><%= year_star_count %></b></td>
+    <% end %>
+
+  </tr>
+
+</table>

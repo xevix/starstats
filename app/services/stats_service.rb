@@ -11,6 +11,27 @@ class StatsService
   STARGAZERS_KEY = "my:repos:stargazers"
 
   def starred_per_month_by_user(user)
+    # Fetch the starred repos of this user
+    stars = fetch_starred_by_user(user)
+    star_stats_from_stars(stars)
+  end
+
+  def stars_received_for_user_per_repo(user)
+    stargazed_repos = fetch_stars_for_user_per_repo(user)
+
+    stargazed_repos.collect do |repo|
+      stars = repo[:stargazers]
+      {
+          repo_name: repo[:repo_name],
+          repo_stars: star_stats_from_stars(stars)
+      }
+    end.sort do |a, b|
+      b[:repo_stars][:total_stars] <=> a[:repo_stars][:total_stars]
+    end
+  end
+
+  private
+  def star_stats_from_stars(stars)
     ## Data aggregators
 
     # key: year, month; value: total stars of year-month, e.g. 2016 January
@@ -24,11 +45,8 @@ class StatsService
 
     ## Data processing
 
-    # Fetch the starred repos of this user
-    starred = fetch_starred_by_user(user)
-
     # Iterate over all starred repos
-    starred.each do |star|
+    stars.each do |star|
       datetime = DateTime.parse(star["starred_at"])
       year = datetime.year
       month = datetime.month
@@ -69,29 +87,12 @@ class StatsService
             {
                 years: years,
                 month_stars: (1..12).to_a.collect { |month| years.collect { |year| starred_by_month[year][month] || 0 } },
-                year_star_totals: years.collect { |year| year_stars[year] },
-                month_star_totals: (1..12).to_a.collect { |month| month_stars[month] }
+                year_star_totals: years.empty? ? [0] : years.collect { |year| year_stars[year] },
+                month_star_totals: (1..12).to_a.collect { |month| month_stars[month] || 0 }
             }
     }
   end
 
-  def stars_received_for_user_per_repo(user)
-    stargazed_repos = fetch_stars_for_user_per_repo(user)
-
-    stargazed_repos.collect do |repo|
-      {
-          repo_name: repo[:repo_name],
-          stargazers: repo[:stargazers].collect do |gazer|
-            [
-                [:starred_at, gazer["starred_at"]],
-                [:username, gazer["user"]["login"]]
-            ].to_h
-          end
-      }
-    end
-  end
-
-  private
   def fetch_stars_for_user_per_repo(user)
     user = fetch_user(user)
     # Return value. e.g. [{repo_name: "user/myrepo", stargazers: [...{"starred_at" => "2016-06-15T19:04:38.000Z"}...]}]
