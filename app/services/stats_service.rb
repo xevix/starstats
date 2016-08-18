@@ -104,16 +104,8 @@ class StatsService
     # Fetch stars per repo
     repo_names.each do |repo_name|
       stargazers_key = repo_stargazers_key(user, repo_name)
+      gazers = fetch_api_stars(:stargazers, repo_name, stargazers_key)
 
-      latest_stargazers_redis = fetch_head_by_key(stargazers_key)
-      if latest_stargazers_redis.nil?
-        # TODO: pagination
-        stargazers = $octokit.stargazers(repo_name, accept: ACCEPT_HEADER, sort: SORT, direction: DIRECTION, per_page: PER_PAGE)
-        store_list_by_key(stargazers_key, stargazers)
-      end
-
-      # Fetch stargazers from Redis
-      gazers = fetch_list_by_key(stargazers_key)
       # Add to output list
       repo_stars << {repo_name: repo_name, stargazers: gazers}
     end
@@ -125,42 +117,46 @@ class StatsService
     user = fetch_user(user)
     starred_key = starred_for_user_key(user)
 
-    # Grab latest from Redis
-    latest_repos_redis = fetch_head_by_key(starred_key)
-
-    if latest_repos_redis.nil?
-      # Fetch all repositories that are not a fork
-      # TODO: handle pagination
-      repos = $octokit.repositories(user, type: "owner").select { |r| !r.fork }
-      # Store in Redis
-      store_list_by_key(starred_key, repos)
+    fetch_api_resource(:repositories, user, {}, {type: "owner"}, starred_key) do |repo|
+      !repo.fork
     end
-
-    # Fetch repo ids from Redis
-    fetch_list_by_key(starred_for_user_key(user))
   end
 
   def fetch_starred_by_user(user)
     user = fetch_user(user)
     key = starred_by_user_key(user)
 
+    fetch_api_stars(:starred, user, key)
+  end
+
+  def fetch_api_stars(resource_method, resource_param, key)
+    fetch_api_resource(resource_method, resource_param, {accept: ACCEPT_HEADER}, {sort: SORT, direction: DIRECTION, per_page: PER_PAGE}, key)
+  end
+
+  def fetch_api_resource(resource_method, resource_param, resource_headers, sort_params, key)
     # Grab the latest from Redis
-    latest_starred_redis = fetch_head_by_key(key)
+    latest_resource_redis = fetch_head_by_key(key)
     # If results are missing, cache them
     # TODO: Proper check from the API periodically for new data
-    if latest_starred_redis.nil?
+    if latest_resource_redis.nil?
       # Grab the latest from the API
-      $octokit.starred(user, accept: ACCEPT_HEADER, sort: SORT, direction: DIRECTION, per_page: PER_PAGE)
+      $octokit.send(resource_method, resource_param, resource_headers.merge(sort_params))
 
       # Store response for pagination links
       latest_api_response = $octokit.last_response
 
       # Loop until there's no next page
       while true do
-        store_list_by_key(key, latest_api_response.data)
+        data = latest_api_response.data
+        data_to_store = if block_given?
+                          data.select { |d| yield d }
+                        else
+                          data
+                        end
+        store_list_by_key(key, data_to_store)
 
         if latest_api_response.rels[:next]
-          latest_api_response = latest_api_response.rels[:next].call({sort: SORT, direction: DIRECTION, per_page: PER_PAGE}, {method: :get, headers: {accept: ACCEPT_HEADER}})
+          latest_api_response = latest_api_response.rels[:next].call(sort_params, {method: :get, headers: resource_headers})
         else
           break
         end
