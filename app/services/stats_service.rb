@@ -1,8 +1,12 @@
 class StatsService
   include Singleton
 
-  STARRED_KEY = "my:starred"
+  ACCEPT_HEADER = "application/vnd.github.v3.star+json"
   DEFAULT_GITHUB_USER = ENV["github_user"]
+  PER_PAGE = 100
+  SORT = "created"
+  DIRECTION = "desc"
+  STARRED_KEY = "my:starred"
 
   def starred_per_month(user)
     starred = fetch_starred(user)
@@ -35,7 +39,6 @@ class StatsService
       end
     end
 
-
     years = starred_by_month.keys.sort
 
     {
@@ -63,7 +66,7 @@ class StatsService
     # TODO: Proper check from the API periodically for new data
     if latest_starred_redis.nil?
       # Grab the latest from the API
-      $octokit.starred(user, accept: 'application/vnd.github.v3.star+json', sort: "created", direction: "desc", per_page: 100)
+      $octokit.starred(user, accept: ACCEPT_HEADER, sort: SORT, direction: DIRECTION, per_page: PER_PAGE)
 
       # Store response for pagination links
       latest_api_response = $octokit.last_response
@@ -76,7 +79,7 @@ class StatsService
 
         break unless latest_api_response.rels[:next]
 
-        latest_api_response = latest_api_response.rels[:next].call({sort: "created", direction: "desc", per_page: 100}, {method: :get, headers: {accept: 'application/vnd.github.v3.star+json'}})
+        latest_api_response = latest_api_response.rels[:next].call({sort: SORT, direction: DIRECTION, per_page: PER_PAGE}, {method: :get, headers: {accept: ACCEPT_HEADER}})
       end
     end
 
