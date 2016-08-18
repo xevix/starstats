@@ -10,7 +10,7 @@ class StatsController < ApplicationController
   end
 
   def user
-    params[:user]
+    params[:user] || ENV["github_user"]
   end
 
   def stats_service
