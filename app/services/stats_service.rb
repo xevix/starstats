@@ -9,29 +9,47 @@ class StatsService
   STARRED_KEY = "my:starred"
 
   def starred_per_month(user)
-    starred = fetch_starred(user)
+    ## Data aggregators
+
+    # key: year, month; value: total stars of year-month, e.g. 2016 January
     starred_by_month = {}
+    # Overall total number of repos starred
     total_stars = 0
+    # key: year; value: number of repos starred that year
     year_stars = {}
+    # key: month; value: number of repos starred that month over all years
     month_stars = {}
 
+    ## Data processing
+
+    # Fetch the starred repos of this user
+    starred = fetch_starred(user)
+
+    # Iterate over all starred repos
     starred.each do |star|
       datetime = DateTime.parse(star["starred_at"])
       year = datetime.year
       month = datetime.month
 
+      # Fetch number of stars for the given year or initialize to empty hash
       this_year = starred_by_month[year] || {}
+      # Fetch number of stars for this year-month, or initialize to 0
       this_month = this_year[month] || 0
+      # Count the current star in the count for this year-month
       this_year[month] = this_month + 1
+      # Update the year-month hash with the new star count
       starred_by_month[year] = this_year
 
+      # Count the current star in the total star count
       total_stars += 1
+      # Count the star for this year, adding 1 to the total count or initializing it to 1
       if year_stars[year]
         year_stars[year] += 1
       else
         year_stars[year] = 1
       end
 
+      # Count the star for this month, adding 1 to the total count or initializing it to 1
       if month_stars[month]
         month_stars[month] += 1
       else
@@ -39,8 +57,10 @@ class StatsService
       end
     end
 
+    # Collect all years for which there are stars, sorted by year
     years = starred_by_month.keys.sort
 
+    # Generate the final data
     {
         total_stars: total_stars,
         stars:
