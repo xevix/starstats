@@ -7,8 +7,10 @@ class StatsService
   SORT = "created"
   DIRECTION = "desc"
   STARRED_KEY = "my:starred"
+  STARRED_FOR_KEY = "my:repos"
+  STARGAZERS_KEY = "my:repos:stargazers"
 
-  def starred_per_month(user)
+  def starred_per_month_by_user(user)
     ## Data aggregators
 
     # key: year, month; value: total stars of year-month, e.g. 2016 January
@@ -23,7 +25,7 @@ class StatsService
     ## Data processing
 
     # Fetch the starred repos of this user
-    starred = fetch_starred(user)
+    starred = fetch_starred_by_user(user)
 
     # Iterate over all starred repos
     starred.each do |star|
@@ -73,15 +75,76 @@ class StatsService
     }
   end
 
-  def fetch_starred(user)
-    user ||= DEFAULT_GITHUB_USER
-    # Grab the latest from Redis
-    latest_starred_redis_maybe = $redis.lindex(starred_key(user), 0)
-    latest_starred_redis =
-        if latest_starred_redis_maybe.present?
-          JSON.parse(latest_starred_redis_maybe)
-        end
+  def stars_received_for_user_per_repo(user)
+    stargazed_repos = fetch_stars_for_user_per_repo(user)
 
+    stargazed_repos.collect do |repo|
+      {
+          repo_name: repo[:repo_name],
+          stargazers: repo[:stargazers].collect do |gazer|
+            [
+                [:starred_at, gazer["starred_at"]],
+                [:username, gazer["user"]["login"]]
+            ].to_h
+          end
+      }
+    end
+  end
+
+  private
+  def fetch_stars_for_user_per_repo(user)
+    user = fetch_user(user)
+    # Return value. e.g. [{repo_name: "user/myrepo", stargazers: [...{"starred_at" => "2016-06-15T19:04:38.000Z"}...]}]
+    repo_stars = []
+
+    # Fetch repo names from Redis
+    repo_names = fetch_user_repos(user).collect { |r| r["full_name"] }
+
+    # Fetch stars per repo
+    repo_names.each do |repo_name|
+      stargazers_key = repo_stargazers_key(user, repo_name)
+
+      latest_stargazers_redis = fetch_head_by_key(stargazers_key)
+      if latest_stargazers_redis.nil?
+        # TODO: pagination
+        stargazers = $octokit.stargazers(repo_name, accept: ACCEPT_HEADER, sort: SORT, direction: DIRECTION, per_page: PER_PAGE)
+        store_list_by_key(stargazers_key, stargazers)
+      end
+
+      # Fetch stargazers from Redis
+      gazers = fetch_list_by_key(stargazers_key)
+      # Add to output list
+      repo_stars << {repo_name: repo_name, stargazers: gazers}
+    end
+
+    repo_stars
+  end
+
+  def fetch_user_repos(user)
+    user = fetch_user(user)
+    starred_key = starred_for_user_key(user)
+
+    # Grab latest from Redis
+    latest_repos_redis = fetch_head_by_key(starred_key)
+
+    if latest_repos_redis.nil?
+      # Fetch all repositories that are not a fork
+      # TODO: handle pagination
+      repos = $octokit.repositories(user, type: "owner").select { |r| !r.fork }
+      # Store in Redis
+      store_list_by_key(starred_key, repos)
+    end
+
+    # Fetch repo ids from Redis
+    fetch_list_by_key(starred_for_user_key(user))
+  end
+
+  def fetch_starred_by_user(user)
+    user = fetch_user(user)
+    key = starred_by_user_key(user)
+
+    # Grab the latest from Redis
+    latest_starred_redis = fetch_head_by_key(key)
     # If results are missing, cache them
     # TODO: Proper check from the API periodically for new data
     if latest_starred_redis.nil?
@@ -93,23 +156,51 @@ class StatsService
 
       # Loop until there's no next page
       while true do
-        latest_api_response.data.each do |starred_entry|
-          $redis.rpush starred_key(user), starred_entry.to_attrs.to_json
+        store_list_by_key(key, latest_api_response.data)
+
+        if latest_api_response.rels[:next]
+          latest_api_response = latest_api_response.rels[:next].call({sort: SORT, direction: DIRECTION, per_page: PER_PAGE}, {method: :get, headers: {accept: ACCEPT_HEADER}})
+        else
+          break
         end
-
-        break unless latest_api_response.rels[:next]
-
-        latest_api_response = latest_api_response.rels[:next].call({sort: SORT, direction: DIRECTION, per_page: PER_PAGE}, {method: :get, headers: {accept: ACCEPT_HEADER}})
       end
     end
 
     # Fetch from cache and return
-    $redis.lrange(starred_key(user), 0, -1).collect { |e| JSON.parse(e) }
+    fetch_list_by_key(key)
   end
 
-  private
-  def starred_key(user)
+  ## Redis
+
+  def fetch_list_by_key(key)
+    $redis.lrange(key, 0, -1).collect { |e| JSON.parse(e) }
+  end
+
+  def store_list_by_key(key, list)
+    list.each { |r| $redis.rpush key, r.to_attrs.to_json }
+  end
+
+  def fetch_head_by_key(key)
+    latest_maybe = $redis.lindex(key, 0)
+    if latest_maybe.present?
+      JSON.parse(latest_maybe)
+    end
+  end
+
+  def starred_by_user_key(user)
     STARRED_KEY + ":" + user
+  end
+
+  def starred_for_user_key(user)
+    STARRED_FOR_KEY + ":" + user
+  end
+
+  def repo_stargazers_key(user, repo_name)
+    STARGAZERS_KEY + ":" + user + ":" + repo_name
+  end
+
+  def fetch_user(user)
+    user || DEFAULT_GITHUB_USER
   end
 
 end

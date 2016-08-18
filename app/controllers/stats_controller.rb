@@ -6,7 +6,7 @@ class StatsController < ApplicationController
 
   private
   def starred_per_month
-    stats_service.starred_per_month(user)
+    stats_service.starred_per_month_by_user(user)
   end
 
   def user
