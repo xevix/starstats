@@ -2,4 +2,64 @@
 
 User: <%= @user %>
 <br>
-<%= render partial: "stars", locals: { star_view: @star_view } %>
+<div id="charts" style="width: 1650px;">
+  <div id="year_chart" style="display: inline-block;"></div>
+  <div id="month_chart" style="display: inline-block;"></div>
+</div>
+
+<%= render partial: "stars", locals: {star_view: @star_view} %>
+<% content_for :js do %>
+    <script type="text/javascript">
+      // Load the Visualization API and the corechart package.
+      google.charts.load('current', {'packages': ['corechart']});
+
+      // Set a callback to run when the Google Visualization API is loaded.
+      google.charts.setOnLoadCallback(drawCharts);
+
+      // Callback that creates and populates a data table,
+      // instantiates the pie chart, passes in the data and
+      // draws it.
+
+      function drawCharts() {
+        [
+            ['Stars By Year', 'Year', 'year_chart', <%= @star_view[:stars][:years].collect { |y| y.to_s }.zip(@star_view[:stars][:year_star_totals]).to_s.html_safe %>],
+            ['Stars By Month', 'Month', 'month_chart', <%= Date::MONTHNAMES[1..-1].zip(@star_view[:stars][:month_star_totals]).to_s.html_safe %>]
+        ].forEach(function(entry) {
+          drawChart(entry[0], entry[1], entry[2], entry[3]);
+        });
+      }
+
+      function drawChart(title, xName, divName, rows) {
+        // Create the data table.
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', xName);
+        data.addColumn('number', 'Stars');
+        data.addRows(
+            rows
+        );
+
+        // Set chart options
+        var options = {
+          'title': title,
+          'width': 800,
+          'height': 600,
+//          'pieSliceText': 'value-and-percentage',
+          'pieSliceText': 'percentage',
+//          'pieSliceTextStyle': {fontSize: 8},
+          legend: {
+            position: 'labeled',
+            labeledValueText: 'value',
+            textStyle: {
+              color: 'blue',
+              fontSize: 14
+            }
+          }
+        };
+
+        // Instantiate and draw our chart, passing in some options.
+        var chart = new google.visualization.PieChart(document.getElementById(divName));
+        chart.draw(data, options);
+      }
+
+    </script>
+<% end %>
