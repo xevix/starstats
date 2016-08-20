@@ -98,10 +98,21 @@ class StatsService
             by_year: {
                 title: 'Stars by Year',
                 columns: [
-                    ['string', 'Years'],
+                    ['string', 'Year'],
                     ['number', 'Stars']
                 ],
                 rows: years.collect { |y| y.to_s }.zip(year_star_totals)
+            },
+            by_month: {
+                title: 'Stars by Month',
+                columns: [
+                    ['string', 'Month'],
+                ] + years.collect { |year| ['number', year.to_s] },
+                rows: (1..12).to_a.collect do |month|
+                  [
+                      Date::ABBR_MONTHNAMES[month]
+                  ] + years.collect { |year| starred_by_month[year][month] || 0 }
+                end
             }
         }
     }

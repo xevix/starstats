@@ -12,10 +12,14 @@
   function drawCharts() {
     var rows = [];
     repoData.forEach(function (repoDatum) {
-      chart = repoDatum["charts"]["by_year"];
       var repoName = repoDatum["repo_name"];
       var divPrefix = repoName == "" ? "" : repoName + "_";
-      rows.push([chart["title"], chart["x_name"], divPrefix + 'year_chart', chart["rows"], chart["columns"]]);
+
+      ["year", "month"].forEach(function(chartType) {
+        chart = repoDatum["charts"]["by_" + chartType];
+        rows.push([chart["title"], chart["x_name"], divPrefix + chartType + '_chart', chart["rows"], chart["columns"]]);
+      });
+
 //      rows.push(['Stars By Month', 'Month', repoDatum[0] + '_month_chart', repoDatum[2]]);
     });
 
@@ -37,7 +41,7 @@
     var options = {
       title: title,
       'width': 800,
-      colors: ['#9575cd', '#33ac71'],
+//      colors: ['#9575cd', '#33ac71'],
       hAxis: {
         title: xName
       },
@@ -46,9 +50,11 @@
       }
     };
     // Instantiate and draw our chart, passing in some options.
-    var chart = new google.visualization.ColumnChart(document.getElementById(divName));
+//    var chart = new google.visualization.ColumnChart(document.getElementById(divName));
+    var chart = new google.charts.Bar(document.getElementById(divName));
 
-    chart.draw(data, options);
+//    chart.draw(data, options);
+    chart.draw(data, google.charts.Bar.convertOptions(options));
   }
 
 </script>
