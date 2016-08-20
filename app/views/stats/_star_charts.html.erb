@@ -1,0 +1,61 @@
+<script type="text/javascript">
+  // Load the Visualization API and the corechart package.
+  google.charts.load('current', {'packages': ['corechart']});
+
+  // Set a callback to run when the Google Visualization API is loaded.
+  google.charts.setOnLoadCallback(drawCharts);
+
+  // Callback that creates and populates a data table,
+  // instantiates the pie chart, passes in the data and
+  // draws it.
+
+  function drawCharts() {
+    var rows = [];
+    repoData.forEach(function (repoDatum) {
+      rows.push(['Stars By Year', 'Year', repoDatum[0] + '_year_chart', repoDatum[1]]);
+      rows.push(['Stars By Month', 'Month', repoDatum[0] + '_month_chart', repoDatum[2]]);
+    });
+    if(rows.length == 0) {
+      rows = [
+        ['Stars By Year', 'Year', 'year_chart', <%= defined?(star_view) ? star_view[:stars][:years].collect { |y| y.to_s }.zip(star_view[:stars][:year_star_totals]).to_s.html_safe : '[]' %> ],
+        ['Stars By Month', 'Month', 'month_chart', <%= defined?(star_view) ? Date::MONTHNAMES[1..-1].zip(star_view[:stars][:month_star_totals]).to_s.html_safe : '[]' %>]
+      ];
+    }
+    rows.forEach(function (entry) {
+      drawChart(entry[0], entry[1], entry[2], entry[3]);
+    });
+  }
+
+  function drawChart(title, xName, divName, rows) {
+    // Create the data table.
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', xName);
+    data.addColumn('number', 'Stars');
+    data.addRows(
+        rows
+    );
+
+    // Set chart options
+    var options = {
+      'title': title,
+      'width': 800,
+      'height': 600,
+//          'pieSliceText': 'value-and-percentage',
+      'pieSliceText': 'percentage',
+//          'pieSliceTextStyle': {fontSize: 8},
+      legend: {
+        position: 'labeled',
+        labeledValueText: 'value',
+        textStyle: {
+          color: 'blue',
+          fontSize: 14
+        }
+      }
+    };
+
+    // Instantiate and draw our chart, passing in some options.
+    var chart = new google.visualization.PieChart(document.getElementById(divName));
+    chart.draw(data, options);
+  }
+
+</script>
