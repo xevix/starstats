@@ -4,12 +4,12 @@ User: <%= @user %>
 <br>
 <% @star_views.each do |star_view| %>
     <b>Repo: <%= star_view[:repo_name] %></b>
-    <div style="width: 1650px;">
+    <div style="width: 1800px;">
       <div id=<%= "#{star_view[:repo_name]}_year_chart" %> style="display: inline-block;"></div>
       <div id=<%= "#{star_view[:repo_name]}_month_chart" %> style="display: inline-block;"></div>
     </div>
     <br>
-    <%= render partial: "stars", locals: {star_view: star_view[:repo_stars]} %>
+    <%= render partial: "stars", locals: {star_view: star_view[:repo_stars][:table]} %>
     <br>
 
 <% end %>
@@ -17,13 +17,12 @@ User: <%= @user %>
     <script type="text/javascript">
     var repoData =
       <%= @star_views.collect do |star_view|
-      [
-          star_view[:repo_name],
-          star_view[:repo_stars][:stars][:years].collect { |y| y.to_s }.zip(star_view[:repo_stars][:stars][:year_star_totals]),
-          Date::MONTHNAMES[1..-1].zip(star_view[:repo_stars][:stars][:month_star_totals])
-      ]
+      {
+         repo_name: star_view[:repo_name],
+         charts: star_view[:repo_stars][:charts]
+      }
 
-      end.to_s.html_safe %>;
+      end.to_json.html_safe %>;
     </script>
     <%= render partial: "star_charts" %>
 <% end %>

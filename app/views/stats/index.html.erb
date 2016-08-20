@@ -7,10 +7,10 @@ User: <%= @user %>
   <div id="month_chart" style="display: inline-block;"></div>
 </div>
 
-<%= render partial: "stars", locals: {star_view: @star_view} %>
+<%= render partial: "stars", locals: {star_view: @star_view[:table]} %>
 <% content_for :js do %>
     <script type="text/javascript">
-      var repoData = [];
+      var repoData = [{repo_name: "", charts: <%= @star_view[:charts].to_json.html_safe %>}];
       </script>
     <%= render partial: "star_charts", locals: {star_view: @star_view} %>
 <% end %>

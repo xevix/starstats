@@ -26,7 +26,7 @@ class StatsService
           repo_stars: star_stats_from_stars(stars)
       }
     end.sort do |a, b|
-      b[:repo_stars][:total_stars] <=> a[:repo_stars][:total_stars]
+      b[:repo_stars][:table][:total_stars] <=> a[:repo_stars][:table][:total_stars]
     end
   end
 
@@ -80,16 +80,30 @@ class StatsService
     # Collect all years for which there are stars, sorted by year
     years = starred_by_month.keys.sort
 
+    year_star_totals = years.empty? ? [0] : years.collect { |year| year_stars[year] }
+
     # Generate the final data
     {
-        total_stars: total_stars,
-        stars:
-            {
-                years: years,
-                month_stars: (1..12).to_a.collect { |month| years.collect { |year| starred_by_month[year][month] || 0 } },
-                year_star_totals: years.empty? ? [0] : years.collect { |year| year_stars[year] },
-                month_star_totals: (1..12).to_a.collect { |month| month_stars[month] || 0 }
+        table: {
+            total_stars: total_stars,
+            stars:
+                {
+                    years: years,
+                    month_stars: (1..12).to_a.collect { |month| years.collect { |year| starred_by_month[year][month] || 0 } },
+                    year_star_totals: year_star_totals,
+                    month_star_totals: (1..12).to_a.collect { |month| month_stars[month] || 0 }
+                }
+        },
+        charts: {
+            by_year: {
+                title: 'Stars by Year',
+                columns: [
+                    ['string', 'Years'],
+                    ['number', 'Stars']
+                ],
+                rows: years.collect { |y| y.to_s }.zip(year_star_totals)
             }
+        }
     }
   end
 
