@@ -1,6 +1,8 @@
 GitHub Star Statistics
 ======================
 
+![GitHub Logo](/screenshot.png)
+
 # Description
 
 **NB: Incomplete and work in progress as I get the time.**
